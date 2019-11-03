@@ -21,6 +21,14 @@
 		<beans:property name="suffix" value=".jsp" />
 	</beans:bean>
 	
+	<beans:bean id="AdminInterceptor" class="net.manage.interceptor.AdminInterceptor"/>
+		<interceptors>
+			<interceptor>
+				<mapping path="/admin/**"/>
+				<beans:ref bean="AdminInterceptor"/>
+			</interceptor>
+		</interceptors>
+	
 	<context:component-scan base-package="net.manage.controller" />
 	
 	

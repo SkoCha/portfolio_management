@@ -1,40 +1,80 @@
 package net.manage.controller;
 
-import java.text.DateFormat;
-import java.util.Date;
-import java.util.Locale;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import lombok.extern.log4j.Log4j;
+import net.manage.domain.MemberVO;
+import net.manage.service.MemberService;
 
 @Controller
 @RequestMapping("/member/*")
 @Log4j
 public class MemberController {
 	
-	@RequestMapping(value = "/login", method = RequestMethod.GET)
-	public String login(Locale locale, Model model) {
+	@Autowired
+	private MemberService memberService;
+	
+	@Autowired
+	private BCryptPasswordEncoder passwordEncoder;
+	
+	@GetMapping("/login")
+	public void login() {
+		log.info("loginGET()");
+	}	
+	
+	@PostMapping("/login")
+	public String loginPOST(MemberVO vo, HttpServletRequest request, RedirectAttributes rttr) {
+		log.info("loginPOST()" + vo);
+		MemberVO loginMember = memberService.login(vo);
+		HttpSession session = request.getSession();
 		
-		Date date = new Date();
-		DateFormat dateFormat = DateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.LONG, locale);
+		boolean passMatch = passwordEncoder.matches(vo.getUserPass(), loginMember.getUserPass());
 		
-		String formattedDate = dateFormat.format(date);
+		if(loginMember != null && passMatch) {
+			session.setAttribute("member", loginMember);
+		} else {
+			session.setAttribute("member", null);
+			rttr.addFlashAttribute("result", false);
+			return "redirect:/member/login";
+		}
 		
-		model.addAttribute("serverTime", formattedDate );
-		
-		return "home";
+		return "redirect:/main";
 	}
 	
-	@RequestMapping(value = "/register", method = {RequestMethod.GET})
-	public String register() {
-		log.info("MemberController.getRegister");
+	@GetMapping("/logout")
+	public String logoutGET(HttpSession session) {
+		log.info("logoutGET()");
+		memberService.logout(session);
+		return "redirect:/member/login"; 
+	}
+	
+	
+	@GetMapping("/register")
+	public String registerGET() {
+		log.info("RegisterGET()");
 		return "/member/register";
+	}
+	
+	@PostMapping("/register")
+	public String registerPOST(MemberVO vo) {
+		log.info("RegisterPOST()");
+		
+		String rawPassword = vo.getUserPass();
+		String EncryptPassword = passwordEncoder.encode(rawPassword);
+		vo.setUserPass(EncryptPassword);		
+		memberService.register(vo);
+		return "/member/login";
 	}
 	
 }
